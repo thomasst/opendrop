@@ -46,11 +46,12 @@ class AirDropCli:
         parser.add_argument('-p', '--phone', nargs='*', help='User\'s phone numbers (currently unused)')
         parser.add_argument('-n', '--name', help='Computer name (displayed in sharing pane)')
         parser.add_argument('-m', '--model', help='Computer model (displayed in sharing pane)')
-        parser.add_argument('-d', '--debug', help='Enable debug mode', action='store_true')
+        parser.add_argument('-v', '--verbose', help='Enable debug mode', action='store_true')
         parser.add_argument('-i', '--interface', help='Which AWDL interface to use', default='awdl0')
+        parser.add_argument('-d', '--directory', help='Which directory to use for receiving files')
         args = parser.parse_args(args)
 
-        if args.debug:
+        if args.verbose:
             logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(name)s: %(message)s')
         else:
             logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -61,7 +62,7 @@ class AirDropCli:
                                     phone=args.phone,
                                     computer_name=args.name,
                                     computer_model=args.model,
-                                    debug=args.debug,
+                                    debug=args.verbose,
                                     interface=args.interface)
         self.server = None
         self.client = None
@@ -72,7 +73,7 @@ class AirDropCli:
 
         try:
             if args.action == 'receive':
-                self.receive()
+                self.receive(args.directory)
             elif args.action == 'find':
                 self.find()
             else:  # args.action == 'send'
@@ -152,8 +153,8 @@ class AirDropCli:
             logger.debug('Receiver ID {} is not discoverable'.format(id))
         self.lock.release()
 
-    def receive(self):
-        self.server = AirDropServer(self.config)
+    def receive(self, directory):
+        self.server = AirDropServer(self.config, directory)
         self.server.start_service()
         self.server.start_server()
 

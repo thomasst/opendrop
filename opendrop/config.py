@@ -53,7 +53,7 @@ class AirDropConfig:
                  host_name=None,
                  computer_name=None,
                  computer_model=None,
-                 server_port=8771,
+                 server_port=8770,
                  airdrop_dir='~/.opendrop',
                  service_id=None,
                  email=None,
@@ -78,6 +78,7 @@ class AirDropConfig:
         if service_id is None:
             service_id = '{0:0{1}x}'.format(random.randint(0, 0xffffffffffff), 12)  # random 6-byte string in base16
         self.service_id = service_id
+        logger.info('Using service ID {}'.format(self.service_id))
 
         self.debug = debug
         self.debug_dir = os.path.join(self.airdrop_dir, 'debug')

@@ -89,7 +89,7 @@ class AirDropClient:
         self.http_conn = None
 
     def send_POST(self, url, body, headers=None):
-        logger.debug('Send {} request'.format(url))
+        logger.debug('Send {} request to {}:{}'.format(url, self.receiver_host, self.receiver_port))
 
         AirDropUtil.write_debug(self.config, body, 'send_{}_request.plist'.format(url.lower().strip('/')))
 

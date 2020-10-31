@@ -19,10 +19,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import io
 import json
 import logging
+import os
 import platform
 import plistlib
 import socket
 import time
+import uuid
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 import libarchive
@@ -35,12 +37,25 @@ from zeroconf import Zeroconf, ServiceInfo, IPVersion
 logger = logging.getLogger(__name__)
 
 
+def notify(files):
+    import redis
+    r = redis.Redis()
+    r.publish('airdrop.main', json.dumps({
+        'subscription': 'airdrop.main',
+        'data': {
+            'action': 'received',
+            'file_list': files,
+        },
+    }))
+
+
 class AirDropServer:
     """
     Announces an HTTPS AirDrop server in the local network via mDNS.
     """
-    def __init__(self, config):
+    def __init__(self, config, directory):
         self.config = config
+        self.directory = os.path.abspath(directory)
 
         # Use IPv6
         self.serveraddress = ('::', self.config.port)
@@ -57,6 +72,7 @@ class AirDropServer:
 
         self.Handler = AirDropServerHandler
         self.Handler.config = self.config
+        self.Handler.directory = self.directory
 
         self.zeroconf = Zeroconf(interfaces=[str(self.ip_addr)],
                                  ip_version=IPVersion.V6Only,
@@ -266,10 +282,17 @@ class AirDropServerHandler(BaseHTTPRequestHandler):
             Extracts an archive from memory into the current directory.
             """
 
+
             with libarchive.read.stream_reader(stream) as archive:
                 libarchive.extract.extract_entries(archive, flags)
 
-        logger.info('Receiving file(s) ...')
+        # Prepare a unique directory
+        dst = str(uuid.uuid4())
+        dst_path = os.path.join(self.directory, dst)
+        os.mkdir(dst_path)
+        os.chdir(dst_path)
+
+        logger.info('Receiving file(s) to {}'.format(dst))
         start = time.time()
         reader = HTTPChunkedReader(self.rfile)
         extract_stream(reader)
@@ -282,6 +305,15 @@ class AirDropServerHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', 0)
         self.send_header('Connection', 'close')
         self.end_headers()
+
+        # Notify
+        received_files = []
+        for root, dirs, files in os.walk(dst_path):
+            for name in files:
+                full_path = os.path.join(root, name)
+                rel_path = os.path.relpath(full_path, self.directory)
+                received_files.append(rel_path)
+        notify(received_files)
 
     def do_POST(self):
         """
