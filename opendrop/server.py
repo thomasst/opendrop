@@ -309,8 +309,12 @@ class AirDropServerHandler(BaseHTTPRequestHandler):
         # Notify
         received_files = []
         for root, dirs, files in os.walk(dst_path):
+            for name in dirs:
+                full_path = os.path.join(root, name)
+                os.chmod(full_path, 0o755)
             for name in files:
                 full_path = os.path.join(root, name)
+                os.chmod(full_path, 0o644)
                 rel_path = os.path.relpath(full_path, self.directory)
                 received_files.append(rel_path)
         notify(received_files)
